@@ -15,7 +15,6 @@ __pycache__
 *.gz
 *PKG-INFO
 *.csv
-*.txt
 *.zip
 mlruns
 *.sqlite
@@ -27,3 +26,8 @@ Test.ipynb
 *test*..ipynb
 *.bak
 
+#Datasets
+AerialImageDataset/
+dataset/
+data/
+data_set/
