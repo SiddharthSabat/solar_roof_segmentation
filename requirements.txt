@@ -39,5 +39,4 @@ tensorflow-datasets==4.6.0
 tensorflow-estimator==2.10.0
 tensorflow-io-gcs-filesystem==0.27.0
 tensorflow-metadata==1.10.0
-gdal==3.3.0
 
