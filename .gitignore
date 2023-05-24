@@ -23,7 +23,7 @@ mlruns
 
 # Specific Challenges
 Test.ipynb
-*test*..ipynb
+*test*.ipynb
 *.bak
 
 #Datasets
