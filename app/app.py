@@ -3,150 +3,175 @@ from streamlit_folium import folium_static
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
-from models.model import predicted_mask, iou_helper, accuracy_helper
+from PIL import Image, ImageGrab
+import cv2
+from tensorflow.keras.models import load_model
 
+# Predict the mask using trained UNet model
+def loss(y_true, y_pred):
+    def dice_loss(y_true, y_pred):
+        y_pred = tf.math.sigmoid(y_pred)
+        numerator = 2 * tf.reduce_sum(y_true * y_pred)
+        denominator = tf.reduce_sum(y_true + y_pred)
+        return 1 - numerator / denominator
+    y_true = tf.cast(y_true, tf.float32)
+    cross_entropy_loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    total_loss = cross_entropy_loss + dice_loss(y_true, y_pred)
+    return tf.reduce_mean(total_loss)
 
-# Function to preprocess the input image
-def preprocess_image(image):
-    # Resize the image to the desired input shape (e.g., 5000x5000)
-    resized_image = image.resize((5000, 5000))
-    # Perform any other preprocessing steps if needed
-    # ...
-    return resized_image
+def iou_metric(y_true, y_pred):
+    y_pred = tf.math.round(y_pred)
+    intersection = K.sum(y_true * y_pred)
+    union = K.sum(y_true) + K.sum(y_pred) - intersection
+    iou = intersection / (union + K.epsilon())
+    return iou
 
-# Function to predict the segmentation mask using trained UNet model
 def predict_mask(image):
-    # create model object
-    model = model()
-    # Perform any necessary preprocessing on the image
-    preprocessed_image = preprocess_image(image)
+    model = load_model("models/unet_vgg18_model.h5", custom_objects={"loss": loss, "iou_metric": iou_metric})
 
-    # Convert the image to an array and normalize the RGB values
-    image_array = np.array(preprocessed_image) / 255.0
+    image_size = (512, 512)
+    image = np.array(image)
+    image = cv2.resize(image, image_size)
+    image = np.expand_dims(image, axis=0)
+    image = image / 255.0
 
-    # Use your trained UNet model to predict the segmentation mask
-    # ...
-    # Replace the following line with your actual prediction code
-    #predicted_mask = predicted_mask()
+    predicted_mask = model.predict(image)
 
     return predicted_mask
+
+# Function to select area
+def location_selector(location):
+    coordinates = []
+
+    if location == 'Austin, TX':
+        coordinates = [30.274687230241007, -97.74036477412099]
+    elif location == 'Cairo, Egypt':
+        coordinates = [30.047601016747706, 31.23850528556723]
+    elif location == 'Houston, TX':
+        coordinates = [29.750740286339706, -95.36208972613808]
+    elif location == 'Mumbai, India':
+        coordinates = [19.072743751435425, 72.85868832704327]
+    elif location == 'Oslo, Norway':
+        coordinates = [59.912455005055214, 10.744077188622049]
+    elif location == 'Tyrol, Austria':
+        coordinates = [47.282273863292524, 11.516161884683973]
+    else:
+        coordinates = [29.750740286339706, -95.36208972613808]
+    return coordinates
 
 # Streamlit app
 def main():
     st.set_page_config(
-    page_title='Rooftop Segmentation',
-    page_icon="graphics/tab_icon.jpg",
-    layout='wide'
+        page_title='Rooftop Segmentation',
+        page_icon="app/tab_icon.jpg",
+        layout='wide'
     )
 
-    st.title("Rooftop Segmentation")
+    st.subheader("Rooftop Segmentation")
 
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
 
     if option == "Upload satellite image":
-        # Upload image from test dataset
         uploaded_image = st.file_uploader("Upload an image:", type=["jpg", "jpeg", "png", "tif"])
         if uploaded_image is not None:
-            # Display the uploaded image
             image = Image.open(uploaded_image)
 
 
+            #with st.spinner(text="ML magic in progress..."):
+            predicted_mask = predict_mask(image)
+
+            # Calculate and display the metrics (IoU, accuracy)
+            iou = 333
+            accuracy = 555
+            st.subheader("Metrics")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric('IoU', iou)
+            col2.metric('Accuracy', accuracy)
+            col3.metric('Identified roof area, sqm', 7_777.00)
+            col4.metric('Roof area, sqm', 5_555.00)
+            #col5.metric('Latitude:', ul_latitude)
+            #col6.metric('Longitude:', ul_longitude)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Input image")
+                with st.spinner(text="ML magic in progress..."):
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
+                    ax1.imshow(image)
+                    ax1.axis("off")
+            with col2:
+                st.subheader("Potential installation locations")
+                with st.spinner(text="ML magic in progress..."):
+                    ax2.imshow(image)
+                    alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
+                    ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
+                    ax2.axis("off")
+
+            # Show the figure in Streamlit
+            st.pyplot(fig)
+
+# Select on satellite map branch
+    else:
+        st.subheader("Select an area on the map")
+
+        location = st.radio('Region', ['Austin, TX', 'Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway', 'Tyrol, Austria'])
+        coordinates = location_selector(location)
+        map = folium.Map(location=coordinates, zoom_start=16, tiles='Stamen Terrain')
+
+       # Display satellite view
+        folium.TileLayer(
+           tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+           attr='Esri',
+           name='Esri Satellite',
+           overlay=False,
+           control=True).add_to(map)
+
+        # Display the map in Streamlit
+        folium_static(map, width=500, height=500)
+
+        if st.button("Predict"):
+
+            # Capture a screenshot
+            map_area = (390, 440, 800, 800)
+            image = ImageGrab.grab(map_area)
+            image.save("map.png")
 
             # Perform prediction and get the segmentation mask
             predicted_mask = predict_mask(image)
 
             # Calculate and display the metrics (IoU, accuracy)
-            # ...
-            # Replace the following lines with your actual metric calculations
-            iou = iou_helper
-            accuracy = accuracy_helper
+            iou = 333
+            accuracy = 555
             st.subheader("Metrics")
-            st.write("IoU:", iou)
-            st.write("Accuracy:", accuracy)
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric('IoU', iou)
+            col2.metric('Accuracy', accuracy)
+            col3.metric('Identified roof area, sqm', 7_777.00)
+            col4.metric('Roof area, sqm', 5_555.00)
+            #col5.metric('Latitude:', ul_latitude)
+            #col6.metric('Longitude:', ul_longitude)
 
-            # Display the image with the mask overlaid on top
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
-            ax1.imshow(image)
-            ax1.set_title("Satellite image")
-            ax1.axis("off")
-            ax2.imshow(image)
-            alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
-            ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
-            ax2.set_title("Identified roofs")
-            ax2.axis("off")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Input image")
+                with st.spinner(text="ML magic in progress..."):
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
+                    ax1.imshow(image)
+                    ax1.axis("off")
+            with col2:
+                st.subheader("Potential installation locations")
+                with st.spinner(text="ML magic in progress..."):
+                    ax2.imshow(image)
+                    alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
+                    ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
+                    ax2.axis("off")
 
             # Show the figure in Streamlit
             st.pyplot(fig)
 
-    else:
-        st.subheader("Select an area on the map")
-
-        # Define the initial center and zoom level for the map
-        initial_coordinates = folium.Map(location=[29.750740286339706, -95.36208972613808], zoom_start=17, tiles='Stamen Terrain')
-
-        # Display Maps satellite view
-        folium.TileLayer(
-            tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            attr='Esri',
-            name='Esri Satellite',
-            overlay=False,
-            control=True
-        ).add_to(initial_coordinates)
-
-        # Display the map in Streamlit
-        folium_static(initial_coordinates, width=500, height=500)
-
-        if st.button("Predict"):
-            # Retrieve the visible area of the map
-            bounds = initial_coordinates.get_bounds()
-            if bounds is not None:
-                lat_min, lon_min = bounds[0]
-                lat_max, lon_max = bounds[1]
-                if lat_min is not None and lon_min is not None and lat_max is not None and lon_max is not None:
-                    # Create a folium map with the visible area
-                    center_lat = (lat_min + lat_max) / 2
-                    center_lon = (lon_min + lon_max) / 2
-                    visible_area = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles='Stamen Terrain')
-                    folium.Rectangle(
-                        bounds=[[lat_min, lon_min], [lat_max, lon_max]],
-                        color='red',
-                        fill_opacity=0.2
-                    ).add_to(visible_area)
-
-                    # Convert the folium map to an image
-                    image = visible_area._to_png()
-
-                    # Display the image
-                    st.image(image, caption="Visible area")
-
-                    # Perform prediction and get the segmentation mask
-                    predicted_mask = predict_mask(image)
-
-                    # Calculate and display the metrics (IoU, accuracy)
-                    iou = iou_helper
-                    accuracy = accuracy_helper
-                    st.subheader("Metrics")
-                    st.write("IoU:", iou)
-                    st.write("Accuracy:", accuracy)
-
-                    # Display the satellite image with the mask overlaid on top
-                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-                    ax1.imshow(image)
-                    ax1.set_title("Satellite image")
-                    ax1.axis("off")
-                    alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
-                    ax2.imshow(image)
-                    ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
-                    ax2.set_title("Segmentation result")
-                    ax2.axis("off")
-
-                    # Show the figure in Streamlit
-                    st.pyplot(fig)
         else:
-            st.warning("Please zoom in to area of interest on the map before predicting.")
-
+            st.warning("Please zoom in to the area of interest on the map before predicting.")
 
 if __name__ == "__main__":
     main()
