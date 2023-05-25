@@ -38,9 +38,7 @@ tensorflow-datasets==4.6.0
 tensorflow-estimator==2.10.0
 tensorflow-io-gcs-filesystem==0.27.0
 tensorflow-metadata==1.10.0
-gmaps
 streamlit
-gmaps==0.9.0
 google-api-core==2.10.2
 google-auth==2.13.0
 google-auth-oauthlib==0.4.6
