@@ -35,3 +35,4 @@ data_set/
 
 .gitignore
 *.ipynb
+.env
