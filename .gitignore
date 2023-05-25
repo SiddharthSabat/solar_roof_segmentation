@@ -32,3 +32,6 @@ dataset/
 data/
 data_set/
 .python-version
+
+.gitignore
+*.ipynb
