@@ -23,7 +23,7 @@ mlruns
 
 # Specific Challenges
 Test.ipynb
-*test*..ipynb
+*test*.ipynb
 *.bak
 
 #Datasets
@@ -32,3 +32,7 @@ dataset/
 data/
 data_set/
 .python-version
+
+.gitignore
+*.ipynb
+.env
