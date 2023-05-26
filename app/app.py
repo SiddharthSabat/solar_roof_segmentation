@@ -29,9 +29,21 @@ def iou_metric(y_true, y_pred):
     iou = intersection / (union + K.epsilon())
     return iou
 
-#@st.cache_data
-def predict_mask(image):
-    model = load_model("models/unet_vgg18_model.h5", custom_objects={"loss": loss, "iou_metric": iou_metric})
+def dice_loss(self, y_true, y_pred):
+        smooth = 1e-5
+        intersection = tf.reduce_sum(y_true * y_pred, axis=[1, 2, 3])
+        union = tf.reduce_sum(y_true + y_pred, axis=[1, 2, 3])
+        dice_coeff = (2.0 * intersection + smooth) / (union + smooth)
+        return 1.0 - dice_coeff
+
+model_paths = {
+    'UNet VGG19': 'models/unet_vgg18_model.h5',
+    'Baseline': 'models/baseline.h5'
+}
+
+def predict_mask(image, selected_model):
+    model_path = model_paths[selected_model]
+    model = load_model(model_path, custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss})
 
     image_size = (512, 512)
     image = np.array(image)
@@ -64,6 +76,9 @@ def location_selector(location):
         coordinates = [29.750740286339706, -95.36208972613808]
     return coordinates
 
+
+
+
 # Streamlit app
 def main():
     st.set_page_config(
@@ -82,14 +97,15 @@ def main():
         if uploaded_image is not None:
             image = Image.open(uploaded_image)
 
-            predicted_mask = predict_mask(image)
+
 
             # Calculate and display the metrics (IoU, accuracy)
             iou = 333
             accuracy = 555
             st.subheader("Metrics")
             col1, col2, col3, col4 = st.columns([3, 3, 3, 3])
-            selected_model = col1.selectbox('Prediction model', ['UNet', 'UNet++', 'PSPNet', 'DeepLabV3+'])
+            selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
+            predicted_mask = predict_mask(image, selected_model)
             resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
             col3.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > 0.5)) * resolution**2))
             col4.metric('Roof area, sqm', 5_555.00)
