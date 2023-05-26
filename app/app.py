@@ -1,3 +1,4 @@
+import time
 import folium
 from streamlit_folium import folium_static
 import streamlit as st
@@ -7,6 +8,7 @@ from PIL import Image, ImageGrab
 import cv2
 from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
+from selenium import webdriver
 
 # Predict the mask using trained UNet model
 def loss(y_true, y_pred):
@@ -86,31 +88,20 @@ def main():
             iou = 333
             accuracy = 555
             st.subheader("Metrics")
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric('Identified roof area, sqm', (np.count_nonzero(predicted_mask > 0.5)))
-            col2.metric('Accuracy', accuracy)
-            col3.metric('Identified roof area, sqm', 7_777.00)
+            col1, col2, col3, col4 = st.columns([3, 3, 3, 3])
+            selected_model = col1.selectbox('Prediction model', ['UNet', 'UNet++', 'PSPNet', 'DeepLabV3+'])
+            resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
+            col3.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > 0.5)) * resolution**2))
             col4.metric('Roof area, sqm', 5_555.00)
-            #col5.metric('Latitude:', ul_latitude)
-            #col6.metric('Longitude:', ul_longitude)
 
             with st.spinner(text="ML magic in progress..."):
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("Input image")
-                    #fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
                     st.image(image, width=512)
-                    #ax1.axis("off")
                 with col2:
-                    st.subheader("Potential installation locations")
+                    st.subheader("Identified installation locations")
                     st.image(predicted_mask, width=512)
-                    #alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.6, step=0.1)
-                        #ax2.imshow(predicted_mask, cmap="binary_r", alpha=alpha_value)
-                        #ax2.axis("off")
-
-                # Show the figure in Streamlit
-                #st.pyplot(fig)
-
 
 # Select on satellite map branch
     else:
@@ -133,10 +124,21 @@ def main():
 
         if st.button("Predict"):
 
-            # Capture a screenshot
-            map_area = (390, 440, 800, 800)
-            image = ImageGrab.grab(map_area)
-            image.save("map.png")
+            html = map.get_root().render()
+            fName='map.html'
+            map.save(fName)
+            mUrl= f'file:///map/{fName}'
+            driver = webdriver.Chrome()
+            driver.get(mUrl)
+            time.sleep(2)
+            driver.save_screenshot('output.png')
+            driver.quit()
+
+
+
+
+
+
 
             # Perform prediction and get the segmentation mask
             predicted_mask = predict_mask(image)
