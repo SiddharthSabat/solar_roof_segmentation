@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageGrab
 import cv2
 from tensorflow.keras.models import load_model
+from tensorflow.keras import backend as K
 
 # Predict the mask using trained UNet model
 def loss(y_true, y_pred):
@@ -26,6 +27,7 @@ def iou_metric(y_true, y_pred):
     iou = intersection / (union + K.epsilon())
     return iou
 
+#@st.cache_data
 def predict_mask(image):
     model = load_model("models/unet_vgg18_model.h5", custom_objects={"loss": loss, "iou_metric": iou_metric})
 
@@ -36,6 +38,7 @@ def predict_mask(image):
     image = image / 255.0
 
     predicted_mask = model.predict(image)
+    predicted_mask = np.squeeze(predicted_mask, axis=0)
 
     return predicted_mask
 
@@ -77,8 +80,6 @@ def main():
         if uploaded_image is not None:
             image = Image.open(uploaded_image)
 
-
-            #with st.spinner(text="ML magic in progress..."):
             predicted_mask = predict_mask(image)
 
             # Calculate and display the metrics (IoU, accuracy)
@@ -86,30 +87,30 @@ def main():
             accuracy = 555
             st.subheader("Metrics")
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric('IoU', iou)
+            col1.metric('Identified roof area, sqm', (np.count_nonzero(predicted_mask > 0.5)))
             col2.metric('Accuracy', accuracy)
             col3.metric('Identified roof area, sqm', 7_777.00)
             col4.metric('Roof area, sqm', 5_555.00)
             #col5.metric('Latitude:', ul_latitude)
             #col6.metric('Longitude:', ul_longitude)
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("Input image")
-                with st.spinner(text="ML magic in progress..."):
-                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
-                    ax1.imshow(image)
-                    ax1.axis("off")
-            with col2:
-                st.subheader("Potential installation locations")
-                with st.spinner(text="ML magic in progress..."):
-                    ax2.imshow(image)
-                    alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
-                    ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
-                    ax2.axis("off")
+            with st.spinner(text="ML magic in progress..."):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("Input image")
+                    #fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
+                    st.image(image, width=512)
+                    #ax1.axis("off")
+                with col2:
+                    st.subheader("Potential installation locations")
+                    st.image(predicted_mask, width=512)
+                    #alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.6, step=0.1)
+                        #ax2.imshow(predicted_mask, cmap="binary_r", alpha=alpha_value)
+                        #ax2.axis("off")
 
-            # Show the figure in Streamlit
-            st.pyplot(fig)
+                # Show the figure in Streamlit
+                #st.pyplot(fig)
+
 
 # Select on satellite map branch
     else:
@@ -164,7 +165,7 @@ def main():
                 with st.spinner(text="ML magic in progress..."):
                     ax2.imshow(image)
                     alpha_value = st.slider("Mask opacity", 0.0, 1.0, 0.3, step=0.1)
-                    ax2.imshow(predicted_mask, cmap="jet", alpha=alpha_value)
+                    ax2.imshow(predicted_mask, cmap="binary_r", alpha=alpha_value)
                     ax2.axis("off")
 
             # Show the figure in Streamlit
