@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageGrab
 import cv2
+#import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 from selenium import webdriver
@@ -37,8 +38,8 @@ def dice_loss(self, y_true, y_pred):
         return 1.0 - dice_coeff
 
 model_paths = {
-    'UNet VGG19': 'models/unet_vgg18_model.h5',
-    'Baseline': 'models/baseline.h5'
+    'Baseline': 'models/baseline.h5',
+    'UNet VGG19': 'models/unet_vgg18_model.h5'
 }
 
 def predict_mask(image, selected_model):
@@ -46,6 +47,7 @@ def predict_mask(image, selected_model):
     model = load_model(model_path, custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss})
 
     image_size = (512, 512)
+    image = image.resize(image_size) #can be deleted
     image = np.array(image)
     image = cv2.resize(image, image_size)
     image = np.expand_dims(image, axis=0)
@@ -55,6 +57,15 @@ def predict_mask(image, selected_model):
     predicted_mask = np.squeeze(predicted_mask, axis=0)
 
     return predicted_mask
+
+def model_summary(selected_model):
+    model_path = model_paths[selected_model]
+    model = load_model(model_path, custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss})
+    summary = []
+    model.summary(print_fn=lambda x: summary.append(x))
+    summary_str = "\n".join(summary)
+
+    return summary_str
 
 # Function to select area
 def location_selector(location):
@@ -76,8 +87,17 @@ def location_selector(location):
         coordinates = [29.750740286339706, -95.36208972613808]
     return coordinates
 
+# Function to save map as image
+def save_map_as_image(map):
+    # Save the map as an HTML file
+    map.save("map.html")
 
-
+    # Open the HTML file and capture a screenshot
+    driver = webdriver.Chrome()
+    driver.get("file:///path/to/map.html")
+    time.sleep(2)
+    driver.save_screenshot("map_image.png")
+    driver.quit()
 
 # Streamlit app
 def main():
@@ -97,20 +117,16 @@ def main():
         if uploaded_image is not None:
             image = Image.open(uploaded_image)
 
-
-
-            # Calculate and display the metrics (IoU, accuracy)
-            iou = 333
-            accuracy = 555
-            st.subheader("Metrics")
-            col1, col2, col3, col4 = st.columns([3, 3, 3, 3])
-            selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-            predicted_mask = predict_mask(image, selected_model)
-            resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
-            col3.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > 0.5)) * resolution**2))
-            col4.metric('Roof area, sqm', 5_555.00)
-
+            # Calculate and display the metrics
             with st.spinner(text="ML magic in progress..."):
+                st.subheader("Metrics")
+                col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
+                selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
+                predicted_mask = predict_mask(image, selected_model)
+                resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
+                threshold = col3.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
+                col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("Input image")
@@ -118,6 +134,12 @@ def main():
                 with col2:
                     st.subheader("Identified installation locations")
                     st.image(predicted_mask, width=512)
+
+                if st.checkbox('Show model summary'):
+                    st.write("Model Summary")
+                    model_summary_text = model_summary(selected_model)
+                    st.code(model_summary_text, language='python')
+
 
 # Select on satellite map branch
     else:
@@ -140,18 +162,29 @@ def main():
 
         if st.button("Predict"):
 
-            html = map.get_root().render()
-            fName='map.html'
-            map.save(fName)
-            mUrl= f'file:///map/{fName}'
-            driver = webdriver.Chrome()
-            driver.get(mUrl)
-            time.sleep(2)
-            driver.save_screenshot('output.png')
-            driver.quit()
+            # Check if map_bounds is already initialized in session_state
+            if "map_bounds" not in st.session_state:
+                # Initialize map_bounds with default values
+                st.session_state.map_bounds = [[0, 0], [0, 0]]
 
+            # Get the coordinates of the selected area
+            ul_latitude = st.session_state.map_bounds[0][0]
+            ul_longitude = st.session_state.map_bounds[0][1]
+            lr_latitude = st.session_state.map_bounds[1][0]
+            lr_longitude = st.session_state.map_bounds[1][1]
 
+            # Create a folium map
+            map = folium.Map(location=[ul_latitude, ul_longitude], zoom_start=16, tiles="Stamen Terrain")
 
+            # Add map layers and markers
+            # ...
+
+            # Save the map as an image
+            save_map_as_image(map)
+
+            # Open and display the map image
+            map_image = Image.open("map_image.png")
+            st.image(map_image)
 
 
 
