@@ -27,7 +27,6 @@ nbclient==0.7.0
 nbconvert==6.5.4
 nbformat==5.7.0
 nbresult==0.0.9
-pandas
 pandas-profiling
 pandocfilters
 tensorboard==2.10.1
@@ -39,8 +38,9 @@ tensorflow-estimator==2.10.0
 tensorflow-io-gcs-filesystem==0.27.0
 tensorflow-metadata==1.10.0
 streamlit
-Pillow==9.1.1
+Pillow
 streamlit-folium
 folium
+selenium
 opencv-python-headless
 #opencv-python

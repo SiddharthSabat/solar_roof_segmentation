@@ -1,4 +1,3 @@
-import time
 import folium
 from streamlit_folium import folium_static
 import streamlit as st
@@ -6,10 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageGrab
 import cv2
-#import tensorflow as tf
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
-from selenium import webdriver
 
 # Predict the mask using trained UNet model
 def loss(y_true, y_pred):
@@ -47,7 +45,6 @@ def predict_mask(image, selected_model):
     model = load_model(model_path, custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss})
 
     image_size = (512, 512)
-    image = image.resize(image_size) #can be deleted
     image = np.array(image)
     image = cv2.resize(image, image_size)
     image = np.expand_dims(image, axis=0)
@@ -86,18 +83,6 @@ def location_selector(location):
     else:
         coordinates = [29.750740286339706, -95.36208972613808]
     return coordinates
-
-# Function to save map as image
-def save_map_as_image(map):
-    # Save the map as an HTML file
-    map.save("map.html")
-
-    # Open the HTML file and capture a screenshot
-    driver = webdriver.Chrome()
-    driver.get("file:///path/to/map.html")
-    time.sleep(2)
-    driver.save_screenshot("map_image.png")
-    driver.quit()
 
 # Streamlit app
 def main():
@@ -176,18 +161,9 @@ def main():
             # Create a folium map
             map = folium.Map(location=[ul_latitude, ul_longitude], zoom_start=16, tiles="Stamen Terrain")
 
-            # Add map layers and markers
-            # ...
-
-            # Save the map as an image
-            save_map_as_image(map)
-
             # Open and display the map image
             map_image = Image.open("map_image.png")
             st.image(map_image)
-
-
-
 
             # Perform prediction and get the segmentation mask
             predicted_mask = predict_mask(image)
