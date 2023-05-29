@@ -104,6 +104,13 @@ def main():
         layout='wide'
     )
 
+    st.sidebar.image("app/image.png")
+    st.sidebar.title("Rooftop Segmentation")
+    st.sidebar.subheader("Project Overview")
+    st.sidebar.subheader("Performace Metrics")
+    st.sidebar.subheader("Project Overview")
+
+
     st.subheader("Rooftop Segmentation")
 
     # Upload image or select an area on OpenStreetMaps
@@ -119,10 +126,12 @@ def main():
                 st.subheader("Metrics")
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
                 selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
+                threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
                 predicted_mask = predict_mask(image, selected_model)
                 resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
-                threshold = col3.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
+                resolution = col2.number_input('Electricity generation, $ per sq meter', 0.0, 100.0, 0.3)
                 col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+                col4.metric('Revenue, MUSD', 7)
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -148,46 +157,47 @@ def main():
         api_key = load_api_key()
         center = ','.join([str(coord) for coord in coordinates])
         zoom = 16
-        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom={zoom}&size=1024x1024&maptype=satellite&key={api_key}"
+        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom={zoom}&size=525x525&maptype=satellite&key={api_key}"
 
-        components.html(f'<img src="{map_url}">', height=600)
+        components.html(f'<img src="{map_url}">', height=512)
 
         response = requests.get(map_url)
 
         image = Image.open(BytesIO(response.content))
 
-        image_variable = BytesIO()
-        image = image.save(image_variable, format="PNG")
+        st.write(image.format, image.size, image.mode)
+
+        image_var = BytesIO()
+        image = image.save(image_var, format="PNG")
 
         image_path = "image.png"  # Specify the file path and name
         with open(image_path, "wb") as file:
             file.write(response.content)
 
+        image = Image.open(image_path)
 
 
-        if st.button("Predict"):
+        with st.spinner(text="ML magic in progress..."):
+            st.subheader("Metrics")
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
+            selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
+            predicted_mask = predict_mask(image, selected_model)
+            resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
+            threshold = col3.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
+            col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
 
-            with st.spinner(text="ML magic in progress..."):
-                st.subheader("Metrics")
-                col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
-                selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-                predicted_mask = predict_mask(image, selected_model)
-                resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
-                threshold = col3.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
-                col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Input image")
+                st.image(image, width=512)
+            with col2:
+                st.subheader("Identified installation locations")
+                st.image(predicted_mask, width=512)
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("Input image")
-                    st.image(image, width=512)
-                with col2:
-                    st.subheader("Identified installation locations")
-                    st.image(predicted_mask, width=512)
-
-                if st.checkbox('Show model summary'):
-                    st.write("Model Summary")
-                    model_summary_text = model_summary(selected_model)
-                    st.code(model_summary_text, language='python')
+            if st.checkbox('Show model summary'):
+                st.write("Model Summary")
+                model_summary_text = model_summary(selected_model)
+                st.code(model_summary_text, language='python')
 
 if __name__ == "__main__":
     main()
