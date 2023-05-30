@@ -99,6 +99,9 @@ def load_api_key():
         api_key = file.read().strip()
     return api_key
 
+
+api_key = st.secrets["api_key"]
+
 # Streamlit app
 
 st.set_page_config(
@@ -106,6 +109,13 @@ st.set_page_config(
         page_icon="app/tab_icon.jpg",
         layout='wide'
     )
+
+# Sidebar controls
+st.sidebar.write("**Settings**")
+selected_model = st.sidebar.selectbox('Prediction model', list(model_paths.keys()))
+resolution = st.sidebar.number_input('Map resolution, m/px', 0.0, 100.0, 0.3)
+threshold = st.sidebar.number_input('Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
+revenue_rate = st.sidebar.number_input('Generation capacity, $/sq meter/yr', 0, 1000, 100)
 
 def main():
     #st.image("app/logo.png", width=30)
@@ -121,14 +131,11 @@ def main():
             # Calculate and display the metrics
             with st.spinner(text="ML magic in progress..."):
                 st.subheader("Metrics")
-                col1, col2, col3 = st.columns([1, 1, 2])
-                selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-                threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
+                col1, col2 = st.columns([1, 1])
+
                 predicted_mask = predict_mask(image, selected_model)
-                resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
-                revenue_rate = col2.number_input('Electricity generation, $/sq meter/yr', 0, 1000, 100)
-                roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-                col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
+                roof_area = col1.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+                col2.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -170,12 +177,8 @@ def main():
         with st.spinner(text="ML magic in progress..."):
             st.subheader("Metrics")
             #col1, col2, col3 = st.columns([1, 1, 2])
-            selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-            threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
             predicted_mask = predict_mask(image, selected_model)
             #zoom = col2.number_input('Map zoom', 10, 20, 16)
-            resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
-            revenue_rate = col2.number_input('Electricity generation, $/sq.m/yr', 0.0, 1000.0, 100.0)
             roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
             col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
