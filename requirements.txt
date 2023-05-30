@@ -44,4 +44,4 @@ folium
 selenium
 opencv-python-headless
 #opencv-python
-gmap
+gmaps
