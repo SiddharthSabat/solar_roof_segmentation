@@ -12,15 +12,13 @@ st.markdown("""
 - an IoU of 1 means that the union of the boxes is the same as their overlap indicating that they are completely overlapping.
 """)
 
-col1 = st.columns(1)
-col1.image("images/IoU_Metric.jpg", caption="IoU Metric Definition")
+st.image("images/IoU_Metric.jpg", caption="IoU Metric Definition")
+
 st.write("**Training Vs Validation IoU Trend From Model**")
-col1 = st.columns(1)
-col1.image("images/IOU_Metric_Trend.png", caption="IoU Metric Definition")
+st.image("images/IOU_Metric_Trend.png", caption="IoU Metric Definition")
 
 
 st.write("**Loss (Combination Loss):** The loss function used here is the combination of sigmoid cross-entropy loss and dice loss to form the total loss. The cross-entropy loss and the dice loss are added together to create a composite loss value.")
 st.write("**Training Vs Validation Loss Trend From Model**")
-col1 = st.columns(1)
-col1.image("images/Loss_Trend.png", caption="IoU Metric Definition")
+st.image("images/Loss_Trend.png", caption="IoU Metric Definition")
 
