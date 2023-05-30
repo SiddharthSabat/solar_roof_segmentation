@@ -100,7 +100,7 @@ def load_api_key():
     return api_key
 '''
 
-api_key = st.secrets["api_key"]
+api_key = st.secrets.api_key
 
 # Streamlit app
 
@@ -156,7 +156,8 @@ def main():
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
-        api_key = load_api_key()
+        api_key = api_key
+        #api_key = load_api_key()
         center = ','.join([str(coord) for coord in coordinates])
         col1, col2, col3 = st.columns([1, 1, 2])
         zoom = col2.number_input('Map zoom', 10, 20, 16)
