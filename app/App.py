@@ -93,12 +93,12 @@ def location_selector(location):
     else:
         coordinates = [29.750740286339706,-95.36208972613808]
     return coordinates
-
+'''
 def load_api_key():
     with open("./google_maps_api.txt", "r") as file:
         api_key = file.read().strip()
     return api_key
-
+'''
 
 api_key = st.secrets["api_key"]
 
