@@ -56,7 +56,6 @@ def predict_mask(image, selected_model):
 
     model_path = model_paths[selected_model]
     custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss}
-    #custom_objects={"loss": loss, "iou_metric": iou_metric}
     model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     image = np.array(image)
     image_size = (512, 512)
@@ -111,7 +110,7 @@ st.set_page_config(
     )
 
 def main():
-    st.image("app/logo.png", width=30)
+    #st.image("app/logo.png", width=30)
     st.subheader("Rooftop Segmentation")
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
@@ -129,7 +128,7 @@ def main():
                 threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
                 predicted_mask = predict_mask(image, selected_model)
                 resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
-                revenue_rate = col2.number_input('Electricity generation, $/sq meter/yr', 0.0, 1000.0, 100.0)
+                revenue_rate = col2.number_input('Electricity generation, $/sq meter/yr', 0, 1000, 100)
                 roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
                 col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
