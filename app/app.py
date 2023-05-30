@@ -13,6 +13,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 import gmaps
 import streamlit.components.v1 as components
+from streamlit_pages.streamlit_pages import MultiPage
 
 # Predict the mask using trained UNet model
 def loss(y_true, y_pred):
@@ -48,15 +49,15 @@ model_paths = {
 }
 
 def predict_mask(image, selected_model):
-    model_path = model_paths[selected_model]
-    model = load_model(model_path, custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss})
 
-    image_size = (512, 512)
+    model_path = model_paths[selected_model]
+    custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss}
+    model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     image = np.array(image)
+    image_size = (512, 512)
     image = cv2.resize(image, image_size)
     image = np.expand_dims(image, axis=0)
     image = image / 255.0
-
     predicted_mask = model.predict(image)
     predicted_mask = np.squeeze(predicted_mask, axis=0)
 
@@ -80,7 +81,7 @@ def location_selector(location):
     elif location == 'Cairo, Egypt':
         coordinates = [30.047601016747706,31.23850528556723]
     elif location == 'Houston, TX':
-        coordinates = [29.750740286339706,-95.36208972613808]
+        coordinates = [29.755778813031128,-95.36844450152464]
     elif location == 'Mumbai, India':
         coordinates = [19.072743751435425,72.85868832704327]
     elif location == 'Oslo, Norway':
@@ -97,21 +98,30 @@ def load_api_key():
     return api_key
 
 # Streamlit app
-def main():
-    st.set_page_config(
+st.set_page_config(
         page_title='Rooftop Segmentation',
         page_icon="app/tab_icon.jpg",
         layout='wide'
     )
 
-    st.sidebar.image("app/image.png")
-    st.sidebar.title("Rooftop Segmentation")
-    st.sidebar.subheader("Project Overview")
-    st.sidebar.subheader("Performace Metrics")
-    st.sidebar.subheader("Project Overview")
+st.sidebar.title("Rooftop Segmentation")
+st.sidebar.subheader("Project Objectives")
+st.sidebar.write("Utilize UNet CNN to accurately identify suitable roofs for solar panel installation.")
+st.sidebar.write("Enhance the adoption of renewable energy by automating the assessment process, reducing manual effort, and maximizing solar potential.")
+st.sidebar.subheader("Dataset")
+st.sidebar.write("Coverage of 810 km² (405 km² for training and 405 km² for testing). Two classes: roof and not roof. The images cover dissimilar urban settlements, ranging from densely populated areas to alpine towns.")
+st.sidebar.subheader("Model Description")
+st.sidebar.write("The UNet architecture using VGG19, inspired by the encoder-decoder framework, features skip connections to preserve spatial information while capturing context. The backbone network, VGG19, serves as the encoder, extracting hierarchical features. The decoder, composed of upsample and convolutional layers, reconstructs high-resolution predictions for precise roof solar segmentation.")
+st.sidebar.subheader("Performace Metrics")
+st.sidebar.write("**Accuracy**: Evaluate the overall pixel-level accuracy of the model's segmentations, indicating the proportion of correctly classified roof spaces.")
+st.sidebar.write("**IoU** (Intersection over Union): Quantify the overlap between predicted and ground truth segmentations, providing assessment of segmentation quality.")
 
+def main():
 
+    st.image('app/logo.png', width=100)
     st.subheader("Rooftop Segmentation")
+
+
 
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
@@ -124,14 +134,14 @@ def main():
             # Calculate and display the metrics
             with st.spinner(text="ML magic in progress..."):
                 st.subheader("Metrics")
-                col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
+                col1, col2, col3 = st.columns([1, 1, 2])
                 selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
                 threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
                 predicted_mask = predict_mask(image, selected_model)
-                resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
-                resolution = col2.number_input('Electricity generation, $ per sq meter', 0.0, 100.0, 0.3)
-                col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-                col4.metric('Revenue, MUSD', 7)
+                resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
+                revenue_rate = col2.number_input('Electricity generation, $/sq meter/yr', 0.0, 1000.0, 100.0)
+                roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+                col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -151,40 +161,37 @@ def main():
     else:
         st.subheader("Select region")
 
-        location = st.radio('Region', ['Austin, TX', 'Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway', 'Tyrol, Austria'])
+        location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
-
         api_key = load_api_key()
         center = ','.join([str(coord) for coord in coordinates])
-        zoom = 16
-        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom={zoom}&size=525x525&maptype=satellite&key={api_key}"
-
-        components.html(f'<img src="{map_url}">', height=512)
-
+        col1, col2, col3 = st.columns([1, 1, 2])
+        zoom = col2.number_input('Map zoom', 10, 20, 16)
+        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom={zoom}&size=530x530&maptype=satellite&key={api_key}"
+        #components.html(f'<img src="{map_url}">', height=512)
         response = requests.get(map_url)
-
         image = Image.open(BytesIO(response.content))
-
-        st.write(image.format, image.size, image.mode)
-
         image_var = BytesIO()
         image = image.save(image_var, format="PNG")
-
-        image_path = "image.png"  # Specify the file path and name
+        image_path = "image.png"
         with open(image_path, "wb") as file:
             file.write(response.content)
-
         image = Image.open(image_path)
+        image = image.convert('RGB')
+        image = image.crop((0, 0, 512, 512))
 
-
+        # Calculate and display the metrics
         with st.spinner(text="ML magic in progress..."):
             st.subheader("Metrics")
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
+            #col1, col2, col3 = st.columns([1, 1, 2])
             selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
+            threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
             predicted_mask = predict_mask(image, selected_model)
-            resolution = col2.number_input('Image resolution, meters per px', 0.0, 100.0, 0.3)
-            threshold = col3.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
-            col4.metric('Identified roof area, sq meters', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+            #zoom = col2.number_input('Map zoom', 10, 20, 16)
+            resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
+            revenue_rate = col2.number_input('Electricity generation, $/sq.m/yr', 0.0, 1000.0, 100.0)
+            roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+            col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
             col1, col2 = st.columns(2)
             with col1:
@@ -198,6 +205,26 @@ def main():
                 st.write("Model Summary")
                 model_summary_text = model_summary(selected_model)
                 st.code(model_summary_text, language='python')
+
+def about():
+    st.write("Welcome to about page")
+    if st.button("Click about"):
+        st.write("Welcome to About page")
+
+
+def contact():
+    st.write("Welcome to contact page")
+    if st.button("Click Contact"):
+        st.write("Welcome to contact page")
+
+
+# call app class object
+app = MultiPage()
+# Add pages
+app.add_page("Home",main)
+app.add_page("About",about)
+app.add_page("Contact",contact)
+app.run()
 
 if __name__ == "__main__":
     main()
