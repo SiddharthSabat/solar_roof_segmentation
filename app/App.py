@@ -13,8 +13,6 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 import gmaps
 import streamlit.components.v1 as components
-from streamlit_pages.streamlit_pages import MultiPage
-
 
 
 # Predict the mask using trained UNet model
