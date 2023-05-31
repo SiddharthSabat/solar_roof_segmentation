@@ -1,10 +1,20 @@
 import streamlit as st
 
 st.subheader("Project Overview")
-st.write("Utilize UNet CNN to accurately identify suitable roofs for solar panel installation. Enhance the adoption of renewable energy by automating the assessment process, reducing manual effort, and maximizing solar potential.")
+st.write("The project aims to develop an automated system using Deep Learning model architecture (UNet CNN and Vgg19) to enhance the adoption of renewable energy by automating the assessment process, reducing manual effort, and maximizing solar potential.")
+st.write("Developed application can accurately segment and identify roofs from satellite images for solar panel installation and to provide valuable insights to organizations involved in solar energy installation. The project would help to accelerate the growth of solar installations by accessing the predicted mask of the aerial images just by uploading the image of the target location or by using location coordinates.")
 
-st.subheader("Project Objectives")
-st.write("The objective of this project is to create an automated system that utilizes a Deep Learning model architecture to accurately segment and identify roofs from aerial or satellite images. The system aims to support solar panel installation and provide valuable insights to organizations involved in solar energy. By uploading an aerial image or using location coordinates, companies can access the predicted mask of the image, thereby accelerating the growth of solar installations. This technology has the potential to contribute to the expansion and adoption of solar energy, enhance operational efficiency for businesses, enable informed decision-making, and promote sustainable development.")
+st.subheader("Specific Business Application")
+st.write("Calculating total area of the targeted location from the aerial image or from the map location.")
+
+bullet_points = ["An awesome tool to find out the estimated revenue for solar panel installation companies.", "The revenue can be estimated for the predicted solar roof area based on the input Electricity generation per square feet.", "It has the added feature for finding the suitability of whether the installation can be controlled using a threshold parameter."]
+st.write(bullet_points)
+
+st.subheader("Industry Applications")
+
+bullet_points = ["Identify optimal areas on roofs for efficient solar panel installation can be used by Solar Installation companies.", "Construction companies can offer specialized services for integrating solar panels into roofs", "It can support renewable energy initiatives and plan for solar panel deployment while doing the urban planning by the Govt agencies. This way the agencies can Promote clean energy solutions and reduce carbon footprints through solar energy adoption."]
+st.write(bullet_points)
+
 
 col1, col2, col3, col4 = st.columns(4)
 col1.image("images/chi1.jpg", caption="Chicago, IL")

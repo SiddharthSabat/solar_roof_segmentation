@@ -157,7 +157,9 @@ def main():
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
+
         #api_key = load_api_key() #not needed
+
         center = ','.join([str(coord) for coord in coordinates])
         st.subheader("Metrics")
         col1, col2, col3 = st.columns([1, 1, 2])
