@@ -108,8 +108,6 @@ def patch_single_test_image(input_image_data, model, patch_size, overlap):
 
     return combined_image
 
-
-#@st.cache(allow_output_mutation=True, suppress_st_warning=True, show_spinner=False)
 #def predict_mask(image, selected_model):
 #
 #    model_path = model_paths[selected_model]
@@ -125,7 +123,8 @@ def patch_single_test_image(input_image_data, model, patch_size, overlap):
 #
 #    return predicted_mask
 
-def predict_mask(image, selected_model):
+@st.cache_data(show_spinner=False)
+def predict_mask(_image, selected_model, type='local'):
 
     model_path = model_paths[selected_model]
     custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss}
@@ -136,13 +135,13 @@ def predict_mask(image, selected_model):
         patch_size = 512  # Size of each patch
         overlap = 0    # Overlap between patches
 
-        input_image_data = image
+        input_image_data = _image
 
         predicted_mask = patch_single_test_image(input_image_data, model, patch_size, overlap)
 
     else:
 
-      image = np.array(image)
+      image = np.array(_image)
       image_size = (512, 512)
       image = cv2.resize(image, image_size)
       image = np.expand_dims(image, axis=0)
@@ -162,7 +161,7 @@ def model_summary(selected_model):
     return summary_str
 
 # Function to select area
-def location_selector(location):
+def location_selector(location, lon, lat):
     coordinates = []
 
     if location == 'Austin, TX':
@@ -193,17 +192,19 @@ st.set_page_config(
 
 # Sidebar controls
 st.sidebar.write("**Settings**")
-selected_model = st.sidebar.selectbox('Prediction model', list(model_paths.keys()))
-resolution = st.sidebar.number_input('Map resolution, m/px', 0.0, 100.0, 0.3)
-zoom = st.sidebar.number_input('Map zoom', 10, 20, 16)
-threshold = st.sidebar.number_input('Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
-revenue_rate = st.sidebar.number_input('Generation capacity, $/sq meter/yr', 0, 10000, 1000)
-lon = st.sidebar.number_input('Longitude', -180.0, 180.0, 0.0)
-lat = st.sidebar.number_input('Latitude', -90.0, 90.0, 0.0)
+selected_model = st.sidebar.selectbox(':brain: Prediction model', list(model_paths.keys()))
+resolution = st.sidebar.number_input(':world_map: Map resolution, m/px', 0.0, 100.0, 0.3)
+zoom = st.sidebar.number_input(':mag_right: Map zoom', 10, 20, 16)
+threshold = st.sidebar.number_input(':vertical_traffic_light: Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
+revenue_rate = st.sidebar.number_input(':bulb: Generation capacity, $/sq meter/yr', 0, 10000, 1780)
+lon = st.sidebar.number_input(':earth_americas: Longitude', -180.0, 180.0, 0.0)
+lat = st.sidebar.number_input(':earth_asia: Latitude', -90.0, 90.0, 0.0)
 
 def main():
-    #st.image("app/logo.png", width=30)
-    st.subheader("Rooftop Segmentation")
+    col1, col2, col3 = st.columns([5, 1, 1])
+    col1.subheader("Rooftop Segmentation")
+    col2.image("images/qr_code.png", width=100)
+    col3.image("images/slb_logo.jpg", width=150)
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
     if option == "Upload satellite image":
@@ -213,12 +214,12 @@ def main():
 
             # Calculate and display the metrics
             with st.spinner(text="ML magic in progress..."):
-                st.subheader("Metrics")
+                st.subheader("Opportunity")
                 col1, col2 = st.columns([1, 1])
 
-                predicted_mask = predict_mask(image, selected_model)
-                roof_area = col1.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-                col2.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
+                predicted_mask = predict_mask(image, selected_model, type=uploaded_image.name)
+                roof_area = col1.metric('**IDENTIFIED ROOF AREA, SQ.M**', "{:,.0f}".format(int((np.count_nonzero(predicted_mask > threshold)) * resolution**2)))
+                col2.metric('**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -238,7 +239,7 @@ def main():
         st.subheader("Select region")
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
-        coordinates = location_selector(location)
+        coordinates = location_selector(location, lon, lat)
 
         center = ','.join([str(coord) for coord in coordinates])
         st.subheader("Metrics")
@@ -259,9 +260,9 @@ def main():
 
         # Calculate and display the metrics
         with st.spinner(text="ML magic in progress..."):
-            predicted_mask = predict_mask(image, selected_model)
-            roof_area = col1.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-            col2.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
+            predicted_mask = predict_mask(image, selected_model, type=coordinates)
+            roof_area = col1.metric('**IDENTIFIED ROOF AREA, SQ.M**', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+            col2.metric('**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
 
             col1, col2 = st.columns(2)
             with col1:
@@ -275,7 +276,6 @@ def main():
                 st.write("Model Summary")
                 model_summary_text = model_summary(selected_model)
                 st.code(model_summary_text, language='python')
-
 
 if __name__ == "__main__":
     main()
