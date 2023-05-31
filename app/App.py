@@ -13,7 +13,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 import gmaps
 import streamlit.components.v1 as components
-from streamlit_pages.streamlit_pages import MultiPage
+
 
 # Predict the mask using trained UNet model
 def loss(y_true, y_pred):
@@ -44,10 +44,12 @@ def dice_loss(self, y_true, y_pred):
 model_paths = {
     'Baseline': 'models/baseline.h5',
     'UNet VGG19': 'models/unet_vgg18_model.h5',
+    'UNet with patch': 'models/Changed_IOU_Epoch_12_Class_30-May.h5',
     'UNet with Data Augmentation': 'models/Sid_Unet_Model_Train_Data_Aug_val.h5',
     'UNet without validation': 'models/Sid_Unet_Model_Train_2_Epoch.h5'
 }
 
+#@st.cache(allow_output_mutation=True, suppress_st_warning=True, show_spinner=False)
 def predict_mask(image, selected_model):
 
     model_path = model_paths[selected_model]
@@ -92,37 +94,32 @@ def location_selector(location):
         coordinates = [29.750740286339706,-95.36208972613808]
     return coordinates
 
-def load_api_key():
-    with open("./google_maps_api.txt", "r") as file:
-        api_key = file.read().strip()
-    return api_key
+#def load_api_key():
+#    with open("./google_maps_api.txt", "r") as file:
+#        api_key = file.read().strip()
+#    return api_key
+
+
+api_key = st.secrets.api_key
 
 # Streamlit app
+
 st.set_page_config(
-        page_title='Rooftop Segmentation',
+        page_title='Roof Segmentation',
         page_icon="app/tab_icon.jpg",
         layout='wide'
     )
 
-st.sidebar.title("Rooftop Segmentation")
-st.sidebar.subheader("Project Objectives")
-st.sidebar.write("Utilize UNet CNN to accurately identify suitable roofs for solar panel installation.")
-st.sidebar.write("Enhance the adoption of renewable energy by automating the assessment process, reducing manual effort, and maximizing solar potential.")
-st.sidebar.subheader("Dataset")
-st.sidebar.write("Coverage of 810 km² (405 km² for training and 405 km² for testing). Two classes: roof and not roof. The images cover dissimilar urban settlements, ranging from densely populated areas to alpine towns.")
-st.sidebar.subheader("Model Description")
-st.sidebar.write("The UNet architecture using VGG19, inspired by the encoder-decoder framework, features skip connections to preserve spatial information while capturing context. The backbone network, VGG19, serves as the encoder, extracting hierarchical features. The decoder, composed of upsample and convolutional layers, reconstructs high-resolution predictions for precise roof solar segmentation.")
-st.sidebar.subheader("Performace Metrics")
-st.sidebar.write("**Accuracy**: Evaluate the overall pixel-level accuracy of the model's segmentations, indicating the proportion of correctly classified roof spaces.")
-st.sidebar.write("**IoU** (Intersection over Union): Quantify the overlap between predicted and ground truth segmentations, providing assessment of segmentation quality.")
+# Sidebar controls
+st.sidebar.write("**Settings**")
+selected_model = st.sidebar.selectbox('Prediction model', list(model_paths.keys()))
+resolution = st.sidebar.number_input('Map resolution, m/px', 0.0, 100.0, 0.3)
+threshold = st.sidebar.number_input('Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
+revenue_rate = st.sidebar.number_input('Generation capacity, $/sq meter/yr', 0, 1000, 100)
 
 def main():
-
-    st.image('app/logo.png', width=100)
+    #st.image("app/logo.png", width=30)
     st.subheader("Rooftop Segmentation")
-
-
-
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
 
@@ -134,14 +131,11 @@ def main():
             # Calculate and display the metrics
             with st.spinner(text="ML magic in progress..."):
                 st.subheader("Metrics")
-                col1, col2, col3 = st.columns([1, 1, 2])
-                selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-                threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
+                col1, col2 = st.columns([1, 1])
+
                 predicted_mask = predict_mask(image, selected_model)
-                resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
-                revenue_rate = col2.number_input('Electricity generation, $/sq meter/yr', 0.0, 1000.0, 100.0)
-                roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-                col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
+                roof_area = col1.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+                col2.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -156,14 +150,14 @@ def main():
                     model_summary_text = model_summary(selected_model)
                     st.code(model_summary_text, language='python')
 
-
 # Select on satellite map branch
     else:
         st.subheader("Select region")
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
-        api_key = load_api_key()
+        api_key = api_key
+        #api_key = load_api_key()
         center = ','.join([str(coord) for coord in coordinates])
         col1, col2, col3 = st.columns([1, 1, 2])
         zoom = col2.number_input('Map zoom', 10, 20, 16)
@@ -184,12 +178,8 @@ def main():
         with st.spinner(text="ML magic in progress..."):
             st.subheader("Metrics")
             #col1, col2, col3 = st.columns([1, 1, 2])
-            selected_model = col1.selectbox('Prediction model', list(model_paths.keys()))
-            threshold = col1.number_input('Threshold', 0.0, 1.0, 0.5, step=0.1)
             predicted_mask = predict_mask(image, selected_model)
             #zoom = col2.number_input('Map zoom', 10, 20, 16)
-            resolution = col2.number_input('Image resolution, m/px', 0.0, 100.0, 0.3)
-            revenue_rate = col2.number_input('Electricity generation, $/sq.m/yr', 0.0, 1000.0, 100.0)
             roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
             col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
@@ -206,25 +196,6 @@ def main():
                 model_summary_text = model_summary(selected_model)
                 st.code(model_summary_text, language='python')
 
-def about():
-    st.write("Welcome to about page")
-    if st.button("Click about"):
-        st.write("Welcome to About page")
-
-
-def contact():
-    st.write("Welcome to contact page")
-    if st.button("Click Contact"):
-        st.write("Welcome to contact page")
-
-
-# call app class object
-app = MultiPage()
-# Add pages
-app.add_page("Home",main)
-app.add_page("About",about)
-app.add_page("Contact",contact)
-app.run()
 
 if __name__ == "__main__":
     main()
