@@ -91,16 +91,15 @@ def location_selector(location):
     elif location == 'Tyrol, Austria':
         coordinates = [47.282273863292524,11.516161884683973]
     else:
-        coordinates = [29.750740286339706,-95.36208972613808]
+        coordinates = [lon, lat]
     return coordinates
 
 def load_api_key():
     with open("./google_maps_api.txt", "r") as file:
         api_key = file.read().strip()
-    return api_key
+    return None # not needed api_key
 
-
-api_key = st.secrets["api_key"]
+api_key = st.secrets.secret.api_key
 
 # Streamlit app
 
@@ -114,15 +113,17 @@ st.set_page_config(
 st.sidebar.write("**Settings**")
 selected_model = st.sidebar.selectbox('Prediction model', list(model_paths.keys()))
 resolution = st.sidebar.number_input('Map resolution, m/px', 0.0, 100.0, 0.3)
+zoom = st.sidebar.number_input('Map zoom', 10, 20, 16)
 threshold = st.sidebar.number_input('Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
-revenue_rate = st.sidebar.number_input('Generation capacity, $/sq meter/yr', 0, 1000, 100)
+revenue_rate = st.sidebar.number_input('Generation capacity, $/sq meter/yr', 0, 10000, 1000)
+lon = st.sidebar.number_input('Longitude', -180.0, 180.0, 0.0)
+lat = st.sidebar.number_input('Latitude', -90.0, 90.0, 0.0)
 
 def main():
     #st.image("app/logo.png", width=30)
     st.subheader("Rooftop Segmentation")
     # Upload image or select an area on OpenStreetMaps
     option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
-
     if option == "Upload satellite image":
         uploaded_image = st.file_uploader("Upload an image:", type=["jpg", "jpeg", "png", "tif"])
         if uploaded_image is not None:
@@ -156,10 +157,11 @@ def main():
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
-        api_key = load_api_key()
+        #api_key = load_api_key() #not needed
         center = ','.join([str(coord) for coord in coordinates])
+        st.subheader("Metrics")
         col1, col2, col3 = st.columns([1, 1, 2])
-        zoom = col2.number_input('Map zoom', 10, 20, 16)
+
         map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom={zoom}&size=530x530&maptype=satellite&key={api_key}"
         #components.html(f'<img src="{map_url}">', height=512)
         response = requests.get(map_url)
@@ -175,12 +177,9 @@ def main():
 
         # Calculate and display the metrics
         with st.spinner(text="ML magic in progress..."):
-            st.subheader("Metrics")
-            #col1, col2, col3 = st.columns([1, 1, 2])
             predicted_mask = predict_mask(image, selected_model)
-            #zoom = col2.number_input('Map zoom', 10, 20, 16)
-            roof_area = col3.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-            col3.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
+            roof_area = col1.metric('Identified roof area, sq.m', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
+            col2.metric('Estimated revenue, M$/yr', int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2) / 1000))
 
             col1, col2 = st.columns(2)
             with col1:
