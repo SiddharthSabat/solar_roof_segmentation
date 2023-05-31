@@ -44,24 +44,111 @@ def dice_loss(self, y_true, y_pred):
 model_paths = {
     'Baseline': 'models/baseline.h5',
     'UNet VGG19': 'models/unet_vgg18_model.h5',
-    'UNet with patch': 'models/Changed_IOU_Epoch_12_Class_30-May.h5',
-    'UNet with Data Augmentation': 'models/Sid_Unet_Model_Train_Data_Aug_val.h5',
-    'UNet without validation': 'models/Sid_Unet_Model_Train_2_Epoch.h5'
+    'UNet with Patch and Data Aug': 'models/Changed_IOU_Epoch_12_Class_30-May.h5'
 }
 
+def patch_single_test_image(input_image_data, model, patch_size, overlap):
+    # Load the image data using OpenCV
+    #input_image = cv2.imdecode(np.frombuffer(input_image_data, np.uint8), cv2.IMREAD_COLOR)
+    input_image_data = np.array(input_image_data)
+    if input_image_data is None:
+        print("Error loading the image.")
+        return None
+
+    # Get the image properties
+    height, width, _ = input_image_data.shape
+
+    # Calculate the number of patches in each dimension
+    num_patches_x = (width - overlap) // (patch_size - overlap)
+    num_patches_y = (height - overlap) // (patch_size - overlap)
+
+    predicted_masks = []
+
+    for i in range(num_patches_x):
+        for j in range(num_patches_y):
+            x_start = i * (patch_size - overlap)
+            y_start = j * (patch_size - overlap)
+            x_end = x_start + patch_size
+            y_end = y_start + patch_size
+
+            patch_data = input_image_data[y_start:y_end, x_start:x_end, :]
+
+            # Normalize the patch data
+            patch_data = patch_data / 255.0
+
+            # Reshape the patch to match the model's input shape
+            patch_data = np.expand_dims(patch_data, axis=0)
+
+            # Predict the patch using the model
+            predicted_patch = model.predict(patch_data)
+            predicted_masks.append(predicted_patch)
+
+    # Combine the predicted masks into a single array
+    predicted_masks = np.concatenate(predicted_masks, axis=0)
+
+    # Determine the dimensions of the final combined image
+    combined_width = num_patches_x * patch_size
+    combined_height = num_patches_y * patch_size
+
+    # Create an empty array to store the combined image
+    combined_image = np.zeros((combined_height, combined_width, 1))
+
+    # Iterate over the predicted masks and place each patch in the corresponding location in the combined image
+    for i in range(num_patches_x):
+        for j in range(num_patches_y):
+            x_start = i * (patch_size - overlap)
+            y_start = j * (patch_size - overlap)
+            x_end = x_start + patch_size
+            y_end = y_start + patch_size
+
+            combined_image[y_start:y_end, x_start:x_end, :] = predicted_masks[i * num_patches_y + j]
+
+    # Reshape the combined image array to the final dimensions
+    combined_image = combined_image.reshape((combined_height, combined_width))
+
+    return combined_image
+
+
 #@st.cache(allow_output_mutation=True, suppress_st_warning=True, show_spinner=False)
+#def predict_mask(image, selected_model):
+#
+#    model_path = model_paths[selected_model]
+#    custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss}
+#    model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+#    image = np.array(image)
+#    image_size = (512, 512)
+#    image = cv2.resize(image, image_size)
+#    image = np.expand_dims(image, axis=0)
+#    image = image / 255.0
+#    predicted_mask = model.predict(image)
+#    predicted_mask = np.squeeze(predicted_mask, axis=0)
+#
+#    return predicted_mask
+
 def predict_mask(image, selected_model):
 
     model_path = model_paths[selected_model]
     custom_objects={"loss": loss, "iou_metric": iou_metric, "dice_loss": dice_loss}
     model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    image = np.array(image)
-    image_size = (512, 512)
-    image = cv2.resize(image, image_size)
-    image = np.expand_dims(image, axis=0)
-    image = image / 255.0
-    predicted_mask = model.predict(image)
-    predicted_mask = np.squeeze(predicted_mask, axis=0)
+
+    if model_path == 'models/Changed_IOU_Epoch_12_Class_30-May.h5':
+          # Set the patch size and overlap
+        patch_size = 512  # Size of each patch
+        overlap = 0    # Overlap between patches
+
+        input_image_data = image
+
+        predicted_mask = patch_single_test_image(input_image_data, model, patch_size, overlap)
+
+    else:
+
+      image = np.array(image)
+      image_size = (512, 512)
+      image = cv2.resize(image, image_size)
+      image = np.expand_dims(image, axis=0)
+      image = image / 255.0
+      predicted_mask = model.predict(image)
+      predicted_mask = np.squeeze(predicted_mask, axis=0)
 
     return predicted_mask
 
@@ -93,11 +180,6 @@ def location_selector(location):
     else:
         coordinates = [lon, lat]
     return coordinates
-
-def load_api_key():
-    with open("./google_maps_api.txt", "r") as file:
-        api_key = file.read().strip()
-    return None # not needed api_key
 
 api_key = st.secrets.secret.api_key
 
@@ -157,8 +239,6 @@ def main():
 
         location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
         coordinates = location_selector(location)
-
-        #api_key = load_api_key() #not needed
 
         center = ','.join([str(coord) for coord in coordinates])
         st.subheader("Metrics")
