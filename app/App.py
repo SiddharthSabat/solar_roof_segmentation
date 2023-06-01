@@ -42,9 +42,9 @@ def dice_loss(self, y_true, y_pred):
         return 1.0 - dice_coeff
 
 model_paths = {
-    'Baseline': 'models/baseline.h5',
+    'UNet with Patch and Data Augmentation': 'models/Changed_IOU_Epoch_12_Class_30-May.h5',
     'UNet VGG19': 'models/unet_vgg18_model.h5',
-    'UNet with Patch and Data Aug': 'models/Changed_IOU_Epoch_12_Class_30-May.h5'
+    'Baseline': 'models/baseline.h5'
 }
 
 def patch_single_test_image(input_image_data, model, patch_size, overlap):
@@ -196,7 +196,7 @@ selected_model = st.sidebar.selectbox(':brain: Prediction model', list(model_pat
 resolution = st.sidebar.number_input(':world_map: Map resolution, m/px', 0.0, 100.0, 0.3)
 zoom = st.sidebar.number_input(':mag_right: Map zoom', 10, 20, 16)
 threshold = st.sidebar.number_input(':vertical_traffic_light: Roof suitability threshold', 0.0, 1.0, 0.5, step=0.1)
-revenue_rate = st.sidebar.number_input(':bulb: Generation capacity, $/sq meter/yr', 0, 10000, 1780)
+revenue_rate = st.sidebar.number_input(':bulb: Generation capacity, $/sq.m/yr', 0, 10000, 1780)
 lon = st.sidebar.number_input(':earth_americas: Longitude', -180.0, 180.0, 0.0)
 lat = st.sidebar.number_input(':earth_asia: Latitude', -90.0, 90.0, 0.0)
 
@@ -205,26 +205,29 @@ def main():
     col1.subheader("Rooftop Segmentation")
     col2.image("images/qr_code.png", width=100)
     col3.image("images/slb_logo.jpg", width=150)
-    # Upload image or select an area on OpenStreetMaps
-    option = st.radio("Select input", ("Upload satellite image", "Select area on map"))
+    # Upload image or select an area on Maps
+    st.subheader("Select input")
+    option = st.radio("Select input", ("Upload satellite image", "Select area on map"), label_visibility="collapsed")
     if option == "Upload satellite image":
         uploaded_image = st.file_uploader("Upload an image:", type=["jpg", "jpeg", "png", "tif"])
         if uploaded_image is not None:
             image = Image.open(uploaded_image)
 
             # Calculate and display the metrics
-            with st.spinner(text="ML magic in progress..."):
+            with st.spinner(text=":crystal_ball: ML magic in progress...:hourglass_flowing_sand:"):
                 st.subheader("Opportunity")
                 col1, col2 = st.columns([1, 1])
 
                 predicted_mask = predict_mask(image, selected_model, type=uploaded_image.name)
-                roof_area = col1.metric('**IDENTIFIED ROOF AREA, SQ.M**', "{:,.0f}".format(int((np.count_nonzero(predicted_mask > threshold)) * resolution**2)))
-                col2.metric('**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
+                roof_area = col1.metric(':house_with_garden:**IDENTIFIED ROOF AREA, SQ.M**', "{:,.0f}".format(int((np.count_nonzero(predicted_mask > threshold)) * resolution**2)))
+                col2.metric(':moneybag:**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
 
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("Input image")
                     st.image(image, width=512)
+                    st.write(image.size)
+
                 with col2:
                     st.subheader("Identified installation locations")
                     st.image(predicted_mask, width=512)
@@ -238,7 +241,7 @@ def main():
     else:
         st.subheader("Select region")
 
-        location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'])
+        location = st.radio('Region', ['Cairo, Egypt', 'Houston, TX', 'Mumbai, India', 'Oslo, Norway'], label_visibility="collapsed")
         coordinates = location_selector(location, lon, lat)
 
         center = ','.join([str(coord) for coord in coordinates])
@@ -259,10 +262,10 @@ def main():
         image = image.crop((0, 0, 512, 512))
 
         # Calculate and display the metrics
-        with st.spinner(text="ML magic in progress..."):
+        with st.spinner(text=":crystal_ball: ML magic in progress...:hourglass_flowing_sand:"):
             predicted_mask = predict_mask(image, selected_model, type=coordinates)
-            roof_area = col1.metric('**IDENTIFIED ROOF AREA, SQ.M**', int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))
-            col2.metric('**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
+            roof_area = col1.metric(':house_with_garden:**IDENTIFIED ROOF AREA, SQ.M**', "{:,.0f}".format(int((np.count_nonzero(predicted_mask > threshold)) * resolution**2)))
+            col2.metric(':moneybag:**ESTIMATED REVENUE, $/YR**', "${:,.0f}".format(int((revenue_rate) * int((np.count_nonzero(predicted_mask > threshold)) * resolution**2))))
 
             col1, col2 = st.columns(2)
             with col1:
