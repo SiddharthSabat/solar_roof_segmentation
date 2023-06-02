@@ -27,6 +27,13 @@ col2.image("images/chi2.jpg", caption="Reference mask")
 col3.image("images/kit1.jpg", caption="Kitsap County, WA")
 col4.image("images/kit2.jpg", caption="Reference mask")
 
+st.subheader("Real Prediction Masks from Our AI Application (On Unseen Images)")
+
+st.image("images/innsbruck20_mask.png", width=800)
+st.image("images/sfo14_mask.png", width=800)
+st.image("images/Predicted_mask2.png", width=800)
+
+
 st.subheader("Dataset")
 st.write("Dataset covers 810 km² (405 km² for training and 405 km² for testing).  Aerial orthorectified color imagery with a spatial resolution of 0.3 m. Ground truth data for two semantic classes: building and not building (publicly disclosed only for the training subset). The images cover dissimilar urban settlements, ranging from densely populated areas (e.g., San Francisco’s financial district) to alpine towns (e.g,. Lienz in Austrian Tyrol).")
 
